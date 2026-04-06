@@ -1,0 +1,77 @@
+{
+  "name": "Reporte Semanal de KPIs Automático",
+  "description": "Genera y envía reporte de métricas cada lunes a las 8am sin intervención manual",
+  "flow": [
+    {
+      "id": 1,
+      "module": "builtin:BasicScheduler",
+      "version": 1,
+      "parameters": {
+        "interval": "week",
+        "dayOfWeek": 1,
+        "time": "08:00"
+      },
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    },
+    {
+      "id": 2,
+      "module": "google-sheets:searchRows",
+      "version": 2,
+      "mapper": {
+        "spreadsheetId": "TU_SPREADSHEET_ID",
+        "sheetId": "Métricas",
+        "filter": "fecha >= {{formatDate(addDays(now, -7), 'YYYY-MM-DD')}}"
+      },
+      "metadata": { "designer": { "x": 300, "y": 0 } }
+    },
+    {
+      "id": 3,
+      "module": "anthropic:createMessage",
+      "version": 1,
+      "mapper": {
+        "model": "claude-opus-4-6",
+        "max_tokens": 1500,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Analiza estos datos de la semana y genera un reporte ejecutivo en español: {{2.rows}}. Incluye: 1) Resumen de 3 líneas, 2) Top 3 logros, 3) Top 2 alertas, 4) 1 recomendación accionable. Formato limpio para email."
+          }
+        ]
+      },
+      "metadata": { "designer": { "x": 600, "y": 0 } }
+    },
+    {
+      "id": 4,
+      "module": "gmail:sendEmail",
+      "version": 1,
+      "mapper": {
+        "to": "cliente@empresa.com",
+        "cc": "karen@kairox.ai",
+        "subject": "📊 Reporte Semanal — Semana del {{formatDate(addDays(now, -7), 'DD MMM')}}",
+        "body": "Buenos días,\n\nAquí está el resumen de la semana:\n\n{{3.content}}\n\n---\nReporte generado automáticamente por Karen Pineda · AI Automation Specialist\nPara preguntas, responde este email."
+      },
+      "metadata": { "designer": { "x": 900, "y": 0 } }
+    },
+    {
+      "id": 5,
+      "module": "google-sheets:addRow",
+      "version": 2,
+      "mapper": {
+        "spreadsheetId": "TU_SPREADSHEET_ID",
+        "sheetId": "Reportes Enviados",
+        "values": {
+          "Fecha Envío": "{{now}}",
+          "Semana": "{{formatDate(addDays(now, -7), 'DD MMM')}} - {{formatDate(now, 'DD MMM YYYY')}}",
+          "Estado": "Enviado",
+          "Resumen IA": "{{3.content}}"
+        }
+      },
+      "metadata": { "designer": { "x": 900, "y": 150 } }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": { "roundtrips": 1, "maxErrors": 3, "autoCommit": true }
+  }
+}
