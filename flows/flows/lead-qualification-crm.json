@@ -1,0 +1,138 @@
+{
+  "name": "Lead Qualification + CRM Automático",
+  "description": "Califica leads automáticamente con IA y los registra en CRM según score",
+  "flow": [
+    {
+      "id": 1,
+      "module": "typeform:watchResponses",
+      "version": 1,
+      "parameters": { "formId": "TU_FORM_ID" },
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    },
+    {
+      "id": 2,
+      "module": "anthropic:createMessage",
+      "version": 1,
+      "parameters": {},
+      "mapper": {
+        "model": "claude-opus-4-6",
+        "max_tokens": 500,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Analiza este lead y devuelve un JSON con: score (1-10), tier (hot/warm/cold), reason (1 línea), next_action. Lead: Nombre: {{1.nombre}}, Empresa: {{1.empresa}}, Empleados: {{1.empleados}}, Presupuesto: {{1.presupuesto}}, Necesidad: {{1.necesidad}}. Solo responde con el JSON, sin texto adicional."
+          }
+        ]
+      },
+      "metadata": { "designer": { "x": 300, "y": 0 } }
+    },
+    {
+      "id": 3,
+      "module": "json:parseJSON",
+      "version": 1,
+      "mapper": { "string": "{{2.content}}" },
+      "metadata": { "designer": { "x": 600, "y": 0 } }
+    },
+    {
+      "id": 4,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "metadata": { "designer": { "x": 900, "y": 0 } },
+      "routes": [
+        {
+          "label": "Hot Lead",
+          "filter": {
+            "conditions": [[{ "a": "{{3.tier}}", "b": "hot", "o": "text:equal" }]]
+          },
+          "flow": [
+            {
+              "id": 5,
+              "module": "hubspot:createContact",
+              "version": 1,
+              "mapper": {
+                "firstname": "{{1.nombre}}",
+                "company": "{{1.empresa}}",
+                "email": "{{1.email}}",
+                "hs_lead_status": "NEW",
+                "lifecyclestage": "salesqualifiedlead",
+                "lead_score": "{{3.score}}",
+                "lead_tier": "HOT"
+              },
+              "metadata": { "designer": { "x": 1200, "y": -200 } }
+            },
+            {
+              "id": 6,
+              "module": "slack:postMessage",
+              "version": 1,
+              "mapper": {
+                "channel": "#ventas-hot-leads",
+                "text": "🔥 *HOT LEAD* — Score: {{3.score}}/10\n*{{1.nombre}}* de {{1.empresa}}\nPresupuesto: {{1.presupuesto}}\nRazón: {{3.reason}}\nAcción: {{3.next_action}}"
+              },
+              "metadata": { "designer": { "x": 1200, "y": -100 } }
+            }
+          ]
+        },
+        {
+          "label": "Warm Lead",
+          "filter": {
+            "conditions": [[{ "a": "{{3.tier}}", "b": "warm", "o": "text:equal" }]]
+          },
+          "flow": [
+            {
+              "id": 7,
+              "module": "hubspot:createContact",
+              "version": 1,
+              "mapper": {
+                "firstname": "{{1.nombre}}",
+                "company": "{{1.empresa}}",
+                "email": "{{1.email}}",
+                "lifecyclestage": "marketingqualifiedlead",
+                "lead_score": "{{3.score}}",
+                "lead_tier": "WARM"
+              },
+              "metadata": { "designer": { "x": 1200, "y": 100 } }
+            },
+            {
+              "id": 8,
+              "module": "gmail:sendEmail",
+              "version": 1,
+              "mapper": {
+                "to": "{{1.email}}",
+                "subject": "Hola {{1.nombre}}, vi tu consulta 👋",
+                "body": "Hola {{1.nombre}},\n\nGracias por tu interés. Vi que estás buscando soluciones para {{1.necesidad}}.\n\nMe gustaría agendar 20 minutos para entender mejor tu situación.\n\n¿Tienes disponibilidad esta semana?\n\nSaludos,\nKaren"
+              },
+              "metadata": { "designer": { "x": 1200, "y": 200 } }
+            }
+          ]
+        },
+        {
+          "label": "Cold Lead",
+          "filter": {
+            "conditions": [[{ "a": "{{3.tier}}", "b": "cold", "o": "text:equal" }]]
+          },
+          "flow": [
+            {
+              "id": 9,
+              "module": "hubspot:createContact",
+              "version": 1,
+              "mapper": {
+                "firstname": "{{1.nombre}}",
+                "company": "{{1.empresa}}",
+                "email": "{{1.email}}",
+                "lifecyclestage": "lead",
+                "lead_score": "{{3.score}}",
+                "lead_tier": "COLD"
+              },
+              "metadata": { "designer": { "x": 1200, "y": 300 } }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": { "roundtrips": 1, "maxErrors": 3, "autoCommit": true }
+  }
+}
