@@ -1,0 +1,113 @@
+{
+  "name": "Soporte al Cliente con IA — Clasificación y Respuesta Automática",
+  "description": "Clasifica tickets, responde FAQs automáticamente y escala casos complejos",
+  "flow": [
+    {
+      "id": 1,
+      "module": "gmail:watchEmails",
+      "version": 1,
+      "parameters": { "label": "soporte" },
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    },
+    {
+      "id": 2,
+      "module": "anthropic:createMessage",
+      "version": 1,
+      "mapper": {
+        "model": "claude-opus-4-6",
+        "max_tokens": 1000,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Clasifica este email de soporte y responde si es una FAQ. Email: {{1.subject}} - {{1.body}}. Devuelve JSON: {categoria: 'faq|tecnico|facturacion|urgente', urgencia: 'alta|media|baja', es_faq: true/false, respuesta_sugerida: 'texto o null', requiere_humano: true/false, razon: 'explicacion breve'}. Solo JSON."
+          }
+        ]
+      },
+      "metadata": { "designer": { "x": 300, "y": 0 } }
+    },
+    {
+      "id": 3,
+      "module": "json:parseJSON",
+      "version": 1,
+      "mapper": { "string": "{{2.content}}" },
+      "metadata": { "designer": { "x": 600, "y": 0 } }
+    },
+    {
+      "id": 4,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "metadata": { "designer": { "x": 900, "y": 0 } },
+      "routes": [
+        {
+          "label": "FAQ — Respuesta automática",
+          "filter": {
+            "conditions": [[{ "a": "{{3.es_faq}}", "b": "true", "o": "text:equal" }]]
+          },
+          "flow": [
+            {
+              "id": 5,
+              "module": "gmail:sendEmail",
+              "version": 1,
+              "mapper": {
+                "to": "{{1.from}}",
+                "subject": "Re: {{1.subject}}",
+                "body": "Hola,\n\nGracias por contactarnos. {{3.respuesta_sugerida}}\n\nSi necesitas más ayuda, no dudes en responder.\n\nEquipo de Soporte"
+              },
+              "metadata": { "designer": { "x": 1200, "y": -150 } }
+            }
+          ]
+        },
+        {
+          "label": "Urgente — Escalar inmediatamente",
+          "filter": {
+            "conditions": [[{ "a": "{{3.urgencia}}", "b": "alta", "o": "text:equal" }]]
+          },
+          "flow": [
+            {
+              "id": 6,
+              "module": "slack:postMessage",
+              "version": 1,
+              "mapper": {
+                "channel": "#soporte-urgente",
+                "text": "🚨 *TICKET URGENTE*\n*De:* {{1.from}}\n*Asunto:* {{1.subject}}\n*Categoría:* {{3.categoria}}\n*Razón:* {{3.razon}}\n\nRequiere atención inmediata."
+              },
+              "metadata": { "designer": { "x": 1200, "y": 0 } }
+            }
+          ]
+        },
+        {
+          "label": "Normal — Asignar a cola",
+          "filter": {
+            "conditions": [[{ "a": "{{3.requiere_humano}}", "b": "true", "o": "text:equal" }]]
+          },
+          "flow": [
+            {
+              "id": 7,
+              "module": "google-sheets:addRow",
+              "version": 2,
+              "mapper": {
+                "spreadsheetId": "TU_SPREADSHEET_ID",
+                "sheetId": "Tickets",
+                "values": {
+                  "Fecha": "{{now}}",
+                  "De": "{{1.from}}",
+                  "Asunto": "{{1.subject}}",
+                  "Categoría": "{{3.categoria}}",
+                  "Urgencia": "{{3.urgencia}}",
+                  "Estado": "Pendiente",
+                  "Notas IA": "{{3.razon}}"
+                }
+              },
+              "metadata": { "designer": { "x": 1200, "y": 150 } }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": true,
+    "version": 1,
+    "scenario": { "roundtrips": 1, "maxErrors": 3, "autoCommit": true }
+  }
+}
