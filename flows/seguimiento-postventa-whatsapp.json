@@ -1,0 +1,146 @@
+{
+  "name": "Seguimiento Post-Venta — WhatsApp Automático",
+  "flow": [
+    {
+      "id": 1,
+      "module": "google-sheets:watchRows",
+      "version": 2,
+      "parameters": {},
+      "mapper": {
+        "spreadsheetId": "TU_SPREADSHEET_ID",
+        "sheetId": "Pedidos",
+        "includesHeaders": true,
+        "from": "1"
+      },
+      "metadata": {
+        "designer": { "x": 0, "y": 0 },
+        "restore": { "parameters": { "spreadsheetId": { "label": "Pedidos Tienda" } } }
+      }
+    },
+    {
+      "id": 2,
+      "module": "builtin:BasicRouter",
+      "version": 1,
+      "parameters": {},
+      "mapper": null,
+      "metadata": {
+        "designer": { "x": 300, "y": 0 }
+      },
+      "routes": [
+        {
+          "flow": [
+            {
+              "id": 3,
+              "module": "whatsapp-business-cloud:sendTextMessage",
+              "version": 1,
+              "parameters": { "phoneNumberId": "TU_PHONE_NUMBER_ID" },
+              "mapper": {
+                "to": "{{1.telefono}}",
+                "text": "👋 Hola {{1.nombre}}, gracias por tu compra en nuestra tienda.\n\n✅ Tu pedido *#{{1.numero_pedido}}* fue recibido y está siendo procesado.\n\nTe avisaremos cuando sea despachado. ¡Que tengas un excelente día! 🛍️"
+              },
+              "metadata": {
+                "designer": { "x": 600, "y": -150 },
+                "restore": {}
+              }
+            }
+          ],
+          "label": "Estado: Recibido",
+          "filter": {
+            "name": "Pedido recibido",
+            "conditions": [
+              [
+                {
+                  "a": "{{1.estado}}",
+                  "b": "recibido",
+                  "o": "text:equal"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "flow": [
+            {
+              "id": 4,
+              "module": "whatsapp-business-cloud:sendTextMessage",
+              "version": 1,
+              "parameters": { "phoneNumberId": "TU_PHONE_NUMBER_ID" },
+              "mapper": {
+                "to": "{{1.telefono}}",
+                "text": "📦 ¡Buenas noticias, {{1.nombre}}!\n\nTu pedido *#{{1.numero_pedido}}* fue despachado hoy.\n\n🚚 Número de seguimiento: *{{1.tracking}}*\n📅 Entrega estimada: *{{1.fecha_entrega}}*\n\nPuedes rastrear tu pedido en: {{1.url_tracking}}\n\n¿Preguntas? Responde este mensaje. 😊"
+              },
+              "metadata": {
+                "designer": { "x": 600, "y": 0 },
+                "restore": {}
+              }
+            }
+          ],
+          "label": "Estado: Despachado",
+          "filter": {
+            "name": "Pedido despachado",
+            "conditions": [
+              [
+                {
+                  "a": "{{1.estado}}",
+                  "b": "despachado",
+                  "o": "text:equal"
+                }
+              ]
+            ]
+          }
+        },
+        {
+          "flow": [
+            {
+              "id": 5,
+              "module": "whatsapp-business-cloud:sendTextMessage",
+              "version": 1,
+              "parameters": { "phoneNumberId": "TU_PHONE_NUMBER_ID" },
+              "mapper": {
+                "to": "{{1.telefono}}",
+                "text": "🎉 ¡Tu pedido llegó, {{1.nombre}}!\n\nEsperamos que estés feliz con tu compra *#{{1.numero_pedido}}*.\n\n⭐ ¿Nos dejas una reseña? Solo toma 1 minuto:\n{{1.url_resena}}\n\n¡Gracias por elegirnos! 💙"
+              },
+              "metadata": {
+                "designer": { "x": 600, "y": 150 },
+                "restore": {}
+              }
+            }
+          ],
+          "label": "Estado: Entregado",
+          "filter": {
+            "name": "Pedido entregado",
+            "conditions": [
+              [
+                {
+                  "a": "{{1.estado}}",
+                  "b": "entregado",
+                  "o": "text:equal"
+                }
+              ]
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": {
+      "roundtrips": 1,
+      "maxErrors": 3,
+      "autoCommit": true,
+      "autoCommitTriggerLast": true,
+      "sequential": false,
+      "slots": null,
+      "confidential": false,
+      "dataloss": false,
+      "dlq": false,
+      "freshVariables": false
+    },
+    "designer": {
+      "orphans": []
+    },
+    "zone": "us1.make.com"
+  }
+}
