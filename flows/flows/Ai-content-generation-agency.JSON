@@ -1,0 +1,74 @@
+{
+  "name": "Generación de Contenido IA para Agencias",
+  "description": "Genera 5 variantes de copy + reporte semanal en menos de 20 minutos",
+  "flow": [
+    {
+      "id": 1,
+      "module": "google-sheets:watchRows",
+      "version": 2,
+      "mapper": {
+        "spreadsheetId": "TU_SPREADSHEET_ID",
+        "sheetId": "Briefs",
+        "includesHeaders": true
+      },
+      "metadata": { "designer": { "x": 0, "y": 0 } }
+    },
+    {
+      "id": 2,
+      "module": "anthropic:createMessage",
+      "version": 1,
+      "mapper": {
+        "model": "claude-opus-4-6",
+        "max_tokens": 2000,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Eres un experto en copywriting para redes sociales. Genera 5 variantes de copy para: Marca: {{1.marca}}, Producto: {{1.producto}}, Objetivo: {{1.objetivo}}, Tono: {{1.tono}}, Audiencia: {{1.audiencia}}, Red social: {{1.red_social}}. Formatea como JSON: {variantes: [{id:1, copy:'...', hook:'...', cta:'...'}, ...]}. Solo el JSON."
+          }
+        ]
+      },
+      "metadata": { "designer": { "x": 300, "y": 0 } }
+    },
+    {
+      "id": 3,
+      "module": "json:parseJSON",
+      "version": 1,
+      "mapper": { "string": "{{2.content}}" },
+      "metadata": { "designer": { "x": 600, "y": 0 } }
+    },
+    {
+      "id": 4,
+      "module": "google-sheets:addRow",
+      "version": 2,
+      "mapper": {
+        "spreadsheetId": "TU_SPREADSHEET_ID",
+        "sheetId": "Contenido Generado",
+        "values": {
+          "Fecha": "{{now}}",
+          "Marca": "{{1.marca}}",
+          "Red Social": "{{1.red_social}}",
+          "Variante 1": "{{3.variantes[].copy}}",
+          "Hook 1": "{{3.variantes[].hook}}",
+          "CTA 1": "{{3.variantes[].cta}}",
+          "Estado": "Pendiente revisión"
+        }
+      },
+      "metadata": { "designer": { "x": 900, "y": 0 } }
+    },
+    {
+      "id": 5,
+      "module": "slack:postMessage",
+      "version": 1,
+      "mapper": {
+        "channel": "#contenido-listo",
+        "text": "✅ *Contenido generado* para {{1.marca}}\n📱 Red: {{1.red_social}}\n🎯 Objetivo: {{1.objetivo}}\n\n5 variantes listas en Google Sheets para revisión.\n\n*Vista previa variante 1:*\n{{3.variantes[0].copy}}"
+      },
+      "metadata": { "designer": { "x": 900, "y": 150 } }
+    }
+  ],
+  "metadata": {
+    "instant": false,
+    "version": 1,
+    "scenario": { "roundtrips": 1, "maxErrors": 3, "autoCommit": true }
+  }
+}
